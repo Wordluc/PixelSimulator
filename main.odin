@@ -11,10 +11,10 @@ Particletype :: enum {
 	Fire,
 }
 Cell :: struct {
-	color:  raylib.Color,
-	type:   Particletype,
-	life:   int,
-	enable: bool,
+	color:   raylib.Color,
+	type:    Particletype,
+	life:    int,
+	touched: int,
 }
 
 free_matrix :: proc(m: [][]Cell) {
@@ -39,7 +39,7 @@ is_occupied :: proc(cell: Cell) -> bool {
 is :: proc(cell: Cell, type: Particletype) -> bool {
 	return cell.type == type && is_occupied(cell)
 }
-setFireCell :: proc(m: [][]Cell, x, y: int) {
+simulateFire :: proc(m: [][]Cell, x, y: int) {
 	old := &m[y][x]
 	if old.type != .Fire {
 		return
@@ -66,7 +66,7 @@ setFireCell :: proc(m: [][]Cell, x, y: int) {
 
 	fire(m, y + offsetY, x + offsetX, LIFE_FIRE)
 }
-setWaterCell :: proc(m: [][]Cell, x, y: int) {
+simulateWater :: proc(m: [][]Cell, x, y: int) {
 	old := m[y][x]
 	if old.type != .Water {
 		return
@@ -101,7 +101,7 @@ setWaterCell :: proc(m: [][]Cell, x, y: int) {
 	}
 
 }
-setSolidCell :: proc(m: [][]Cell, x, y: int) {
+simulateSand :: proc(m: [][]Cell, x, y: int) {
 	old := m[y][x]
 	if old.type != .Dirty && old.type != .Wodden {
 		return
@@ -114,9 +114,10 @@ setSolidCell :: proc(m: [][]Cell, x, y: int) {
 		m[y + 1][x - 1] = old
 	} else {
 		old := m[y][x]
-		if old.type == .Dirty {
+		if old.type == .Dirty && m[y + 1][x].touched == 0 {
 			if is(m[y + 1][x], .Water) {
 				w := m[y + 1][x]
+				w.touched += 1
 				m[y + 1][x] = old
 				m[y][x] = w
 
@@ -149,9 +150,14 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			if !is_occupied(old^) {
 				continue
 			}
-			setSolidCell(m, x, y)
-			setFireCell(m, x, y)
-			setWaterCell(m, x, y)
+			simulateSand(m, x, y)
+			simulateFire(m, x, y)
+			simulateWater(m, x, y)
+		}
+	}
+	for _, iy in m {
+		for _, x in m[iy] {
+			m[iy][x].touched = 0
 		}
 	}
 	return m
