@@ -3,25 +3,27 @@ import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import "vendor:raylib"
-LIFE_FIRE :: 40
+LIFE_FIRE :: 10
+LIFE_SMOKE :: 100
 Particletype :: enum {
 	Dirty,
 	Water,
 	Wodden,
 	Fire,
+	Smoke,
+	Stone,
 }
 Cell :: struct {
 	color:   raylib.Color,
 	type:    Particletype,
 	life:    int,
-	touched: int,
+	touched: bool,
 }
 
 free_matrix :: proc(m: [][]Cell) {
 	for _, x in m {
 		delete(m[x])
 	}
-
 }
 new_matrix :: proc(x, y: i32) -> [][]Cell {
 	cells := make([][]Cell, H_M)
@@ -33,104 +35,175 @@ new_matrix :: proc(x, y: i32) -> [][]Cell {
 	}
 	return cells
 }
+is_out :: proc(x, y: i32) -> bool {
+	if x < 0 || x >= W_M {
+		return true
+	}
+	if y < 0 || y >= H_M {
+		return true
+	}
+	return false
+}
+simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed: bool) {
+	x: i32
+	y: i32
+	for offset in offsets {
+		x = pos.x + offset.x
+		y = pos.y + offset.y
+		if is_out(x, y) {
+			continue
+		}
+		if !is_occupied(m[y][x]) {
+			m[y][x] = cell
+			m[y][x].touched = true
+			return true
+		}
+	}
+	return false
+}
 is_occupied :: proc(cell: Cell) -> bool {
 	return cell.color != raylib.BLACK
 }
 is :: proc(cell: Cell, type: Particletype) -> bool {
 	return cell.type == type && is_occupied(cell)
 }
-simulateFire :: proc(m: [][]Cell, x, y: int) {
-	old := &m[y][x]
+simulateFire :: proc(m: [][]Cell, pos: vec2) {
+	old := &m[pos.y][pos.x]
 	if old.type != .Fire {
+		return
+	}
+	if old.touched {
 		return
 	}
 	old.life -= 1
 	if old.life <= 0 {
-		m[y][x] = Cell {
+		r := rand.choice([]int{0, 0, 0, 0, 1})
+		if r == 1 {
+			m[pos.y][pos.x] = Cell {
+				type  = .Smoke,
+				life  = LIFE_SMOKE,
+				color = raylib.GRAY,
+			}
+		} else {
+			m[pos.y][pos.x] = Cell {
+				color = raylib.BLACK,
+			}
+		}
+		return
+	}
+	fire := proc(m: [][]Cell, fire: ^Cell, y, x: i32, life: int) {
+		if m[y][x].type == .Wodden {
+			m[y][x] = Cell {
+				color = raylib.RED,
+				type  = .Fire,
+				life  = life,
+			}
+		}
+	}
+	offsetX := rand.choice([]i32{1, -1, 0})
+	offsetY := rand.choice([]i32{1, -1, 0})
+
+	y := pos.y + offsetY
+	x := pos.x + offsetX
+	if !is_out(x, y) {
+		fire(m, old, y, x, LIFE_FIRE)
+	}
+}
+
+simulateSmoke :: proc(m: [][]Cell, pos: vec2) {
+	old := &m[pos.y][pos.x]
+	if old.type != .Smoke {
+		return
+	}
+	if old.touched {
+		return
+	}
+	old.life -= rand.choice([]int{1, 2, 4, 8})
+	if old.life <= 0 {
+		m[pos.y][pos.x] = Cell {
 			color = raylib.BLACK,
 		}
 		return
 	}
-	fire := proc(m: [][]Cell, y, x: int, life: int) {
-		if m[y][x].type != .Wodden {
-			return
-		}
-		m[y][x] = Cell {
-			color = raylib.RED,
-			type  = .Fire,
-			life  = life,
+	offsets := []vec2 {
+		vec2{y = -1},
+		vec2{x = -1},
+		vec2{x = -1},
+		vec2{y = -1, x = 1},
+		vec2{y = -1, x = -1},
+	}
+	moved := simulate(old^, pos, m, offsets)
+	if moved {
+		m[pos.y][pos.x] = Cell {
+			color = raylib.BLACK,
 		}
 	}
-	offsetX := rand.choice([]int{1, -1, 0})
-	offsetY := rand.choice([]int{1, -1, 0})
-
-	fire(m, y + offsetY, x + offsetX, LIFE_FIRE)
 }
-simulateWater :: proc(m: [][]Cell, x, y: int) {
-	old := m[y][x]
+simulateWater :: proc(m: [][]Cell, pos: vec2) {
+	old := m[pos.y][pos.x]
 	if old.type != .Water {
 		return
 	}
-	moved := false
-	if !is_occupied(m[y + 1][x]) {
-		m[y + 1][x] = old
-		moved = true
-	} else if !is_occupied(m[y + 1][x + 1]) {
-		m[y + 1][x + 1] = old
-		moved = true
-	} else if !is_occupied(m[y + 1][x - 1]) {
-		m[y + 1][x - 1] = old
-		moved = true
-	} else if !is_occupied(m[y][x + 1]) {
-		m[y][x + 1] = old
-		moved = true
-	} else if !is_occupied(m[y][x - 1]) {
-		m[y][x - 1] = old
-		moved = true
+	if old.touched {
+		return
 	}
-	old = m[y][x]
-	if old.type == .Water {
-		if is_occupied(m[y + 1][x]) && m[y + 1][x].type == .Fire {
-			m[y + 1][x].life = 0
-		}
+	offsets := []vec2 {
+		vec2{y = 1},
+		vec2{y = 1, x = 1},
+		vec2{y = 1, x = -1},
+		vec2{x = 1},
+		vec2{x = -1},
 	}
+	moved := simulate(old, pos, m, offsets)
 	if moved {
-		m[y][x] = Cell {
+		m[pos.y][pos.x] = Cell {
 			color = raylib.BLACK,
 		}
 	}
-
+	old = m[pos.y][pos.x]
+	if old.type == .Water {
+		if is_occupied(m[pos.y + 1][pos.x]) && m[pos.y + 1][pos.x].type == .Fire {
+			m[pos.y + 1][pos.x].life = 0
+		}
+	}
 }
-simulateSand :: proc(m: [][]Cell, x, y: int) {
-	old := m[y][x]
+
+simulateSand :: proc(m: [][]Cell, pos: vec2) {
+	old := m[pos.y][pos.x]
 	if old.type != .Dirty && old.type != .Wodden {
 		return
 	}
-	if !is_occupied(m[y + 1][x]) {
-		m[y + 1][x] = old
-	} else if !is_occupied(m[y + 1][x + 1]) {
-		m[y + 1][x + 1] = old
-	} else if !is_occupied(m[y + 1][x - 1]) {
-		m[y + 1][x - 1] = old
+	if old.touched {
+		return
+	}
+
+	offsets := []vec2{vec2{y = 1}, vec2{y = 1, x = 1}, vec2{y = 1, x = -1}}
+	moved := simulate(old, pos, m, offsets)
+	if moved {
+		m[pos.y][pos.x] = Cell {
+			color = raylib.BLACK,
+		}
 	} else {
-		old := m[y][x]
-		if old.type == .Dirty && m[y + 1][x].touched == 0 {
-			if is(m[y + 1][x], .Water) {
-				w := m[y + 1][x]
-				w.touched += 1
-				m[y + 1][x] = old
-				m[y][x] = w
+		old := m[pos.y][pos.x]
+		if old.type == .Dirty && !m[pos.y + 1][pos.x].touched {
+			if is(m[pos.y + 1][pos.x], .Water) {
+				w := m[pos.y + 1][pos.x]
+				w.touched = true
+				m[pos.y + 1][pos.x] = old
+				m[pos.y][pos.x] = w
 
 			}
 		}
 		return
 	}
-	m[y][x] = Cell {
-		color = raylib.BLACK,
-	}
 }
 rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 	sense := false
+	for _, y in m {
+		for _, x in m[y] {
+			m[y][x].touched = false
+		}
+	}
 	for _, iy in m {
 		y := cast(int)H_M - iy - 1 //DAL BASSO AL ALTO
 		for _, x in m[iy] {
@@ -150,14 +223,14 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			if !is_occupied(old^) {
 				continue
 			}
-			simulateSand(m, x, y)
-			simulateFire(m, x, y)
-			simulateWater(m, x, y)
-		}
-	}
-	for _, iy in m {
-		for _, x in m[iy] {
-			m[iy][x].touched = 0
+			pos := vec2 {
+				x = i32(x),
+				y = i32(y),
+			}
+			simulateSand(m, pos)
+			simulateWater(m, pos)
+			simulateFire(m, pos)
+			simulateSmoke(m, pos)
 		}
 	}
 	return m
@@ -208,6 +281,9 @@ main :: proc() {
 		if raylib.IsKeyPressed(raylib.KeyboardKey.F) {
 			type = .Fire
 		}
+		if raylib.IsKeyPressed(raylib.KeyboardKey.S) {
+			type = .Stone
+		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
 			free_matrix(cells)
 			cells = new_matrix(W_M, H_M)
@@ -224,6 +300,9 @@ main :: proc() {
 					   math.pow(f32(radio), 2) {
 						yt := i32(yt)
 						xt := i32(xt)
+						if is_out(xt, yt) {
+							continue
+						}
 						if type == .Water {
 							cells[yt][xt].color = raylib.BLUE
 							cells[yt][xt].type = .Water
@@ -237,7 +316,11 @@ main :: proc() {
 							cells[yt][xt].color = raylib.RED
 							cells[yt][xt].type = .Fire
 							cells[yt][xt].life = LIFE_FIRE
+						} else if type == .Stone {
+							cells[yt][xt].color = raylib.DARKGRAY
+							cells[yt][xt].type = .Stone
 						}
+
 
 					}
 				}
