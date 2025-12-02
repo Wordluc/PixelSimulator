@@ -7,21 +7,6 @@ import "core:strings"
 import "vendor:raylib"
 LIFE_FIRE :: 10
 LIFE_SMOKE :: 200
-Particletype :: enum {
-	None,
-	Dirty,
-	Water,
-	Wodden,
-	Fire,
-	Smoke,
-	Stone,
-}
-Cell :: struct {
-	color:   raylib.Color,
-	type:    Particletype,
-	life:    int,
-	touched: bool,
-}
 
 free_matrix :: proc(m: [][]Cell) {
 	for _, x in m {
@@ -92,12 +77,6 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			}
 			old := &m[y][x]
 			if cast(int)y + 1 >= int(H_M) {
-				if old.type == .Fire {
-					m[y][x] = Cell{}
-				}
-				continue
-			}
-			if !is_occupied(old^) {
 				continue
 			}
 			pos := vec2 {
@@ -105,6 +84,10 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 				y = i32(y),
 			}
 			for i in simulates {
+				old := &m[y][x]
+				if !is_occupied(old^) {
+					continue
+				}
 				if old.touched {
 					continue
 				}
@@ -118,7 +101,7 @@ W_M: i32
 H_M: i32
 W: i32 = 1400
 H: i32 = 700
-SIZE: i32 = 5
+SIZE: i32 = 4
 RADIO_CURSOR: i32 = 5
 
 main :: proc() {
@@ -130,7 +113,15 @@ main :: proc() {
 	raylib.SetTargetFPS(60)
 	p := raylib.GetMousePosition()
 	rain := false
-	type: Particletype = .Dirty
+	type: Particletype = .Sand
+	c := &object {
+		cells = [][]Cell {
+			[]Cell{create_stone(), create_stone()},
+			[]Cell{create_stone(), create_stone()},
+		},
+	}
+	defer delete_object(c)
+	x := 0
 	for {
 		if raylib.WindowShouldClose() {
 			return
@@ -149,7 +140,7 @@ main :: proc() {
 			rain = !rain
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.T) {
-			type = .Dirty
+			type = .Sand
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.Y) {
 			type = .Wodden
@@ -161,10 +152,22 @@ main :: proc() {
 			type = .Fire
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.S) {
-			type = .Stone
+			type = .Still
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.A) {
 			type = .Smoke
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.UP) {
+			move_object(c, add_vec(c.pos, vec2{y = -1}), cells)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.DOWN) {
+			move_object(c, add_vec(c.pos, vec2{y = 1}), cells)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.RIGHT) {
+			move_object(c, add_vec(c.pos, vec2{x = 1}), cells)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.LEFT) {
+			move_object(c, add_vec(c.pos, vec2{x = -1}), cells)
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
 			free_matrix(cells)
@@ -186,25 +189,17 @@ main :: proc() {
 							continue
 						}
 						if type == .Water {
-							cells[yt][xt].color = raylib.BLUE
-							cells[yt][xt].type = .Water
-						} else if type == .Dirty {
-							cells[yt][xt].color = raylib.YELLOW
-							cells[yt][xt].type = .Dirty
+							cells[yt][xt] = create_water()
+						} else if type == .Sand {
+							cells[yt][xt] = create_sand()
 						} else if type == .Wodden {
-							cells[yt][xt].color = raylib.DARKBROWN
-							cells[yt][xt].type = .Wodden
+							cells[yt][xt] = create_wodden()
 						} else if type == .Fire {
-							cells[yt][xt].color = raylib.RED
-							cells[yt][xt].type = .Fire
-							cells[yt][xt].life = LIFE_FIRE
-						} else if type == .Stone {
-							cells[yt][xt].color = raylib.DARKGRAY
-							cells[yt][xt].type = .Stone
+							cells[yt][xt] = create_fire()
+						} else if type == .Still {
+							cells[yt][xt] = create_stone()
 						} else if type == .Smoke {
-							cells[yt][xt].color = raylib.GRAY
-							cells[yt][xt].type = .Smoke
-							cells[yt][xt].life = LIFE_SMOKE
+							cells[yt][xt] = create_smoke()
 						}
 
 
@@ -225,9 +220,9 @@ main :: proc() {
 		}
 		raylib.EndDrawing()
 
-		label := &strings.Builder{}
-		raylib.DrawText(fmt.ctprint("fps:", raylib.GetFPS()), 10, 10, 20, raylib.MAGENTA)
-		raylib.DrawText(fmt.ctprint("fps:", type), 10, 25, 20, raylib.MAGENTA)
+		raylib.DrawText(fmt.ctprint("fps:", raylib.GetFPS()), 10, 10, 20, raylib.BLACK)
+		raylib.DrawText(fmt.ctprint("Type:", type), 10, 30, 20, raylib.BLACK)
+		draw_object(c, cells)
 
 		cells = rain_matrix(cells)
 	}
