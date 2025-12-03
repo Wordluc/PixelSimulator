@@ -16,6 +16,7 @@ Cell :: struct {
 	type:    Particletype,
 	life:    int,
 	touched: bool,
+	origin:  ^object,
 }
 create_water :: proc() -> (res: Cell) {
 	res.color = rand.choice([]raylib.Color{raylib.BLUE, raylib.BLUE, raylib.BLUE, raylib.DARKBLUE})

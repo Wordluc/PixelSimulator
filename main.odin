@@ -114,14 +114,12 @@ main :: proc() {
 	p := raylib.GetMousePosition()
 	rain := false
 	type: Particletype = .Sand
-	c := &object {
-		cells = [][]Cell {
-			[]Cell{create_stone(), create_stone()},
-			[]Cell{create_stone(), create_stone()},
-		},
-	}
+	c := new_object(
+		[][]Cell{[]Cell{create_stone(), create_stone()}, []Cell{create_stone(), create_stone()}},
+		vec2{x = 0, y = 0},
+	)
 	defer delete_object(c)
-	x := 0
+
 	for {
 		if raylib.WindowShouldClose() {
 			return
@@ -157,22 +155,22 @@ main :: proc() {
 		if raylib.IsKeyPressed(raylib.KeyboardKey.A) {
 			type = .Smoke
 		}
-		if raylib.IsKeyDown(raylib.KeyboardKey.UP) {
-			move_object(c, add_vec(c.pos, vec2{y = -1}), cells)
-		}
-		if raylib.IsKeyDown(raylib.KeyboardKey.DOWN) {
-			move_object(c, add_vec(c.pos, vec2{y = 1}), cells)
-		}
-		if raylib.IsKeyDown(raylib.KeyboardKey.RIGHT) {
-			move_object(c, add_vec(c.pos, vec2{x = 1}), cells)
-		}
-		if raylib.IsKeyDown(raylib.KeyboardKey.LEFT) {
-			move_object(c, add_vec(c.pos, vec2{x = -1}), cells)
-		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
 			free_matrix(cells)
 			cells = new_matrix(W_M, H_M)
 			rain = false
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.UP) {
+			move_object(c, add_vec(c.pos, vec2{y = -1}), cells, true)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.DOWN) {
+			move_object(c, add_vec(c.pos, vec2{y = 1}), cells, true)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.RIGHT) {
+			move_object(c, add_vec(c.pos, vec2{x = 1}), cells, true)
+		}
+		if raylib.IsKeyDown(raylib.KeyboardKey.LEFT) {
+			move_object(c, add_vec(c.pos, vec2{x = -1}), cells, true)
 		}
 		y := (f32(p.y) / f32(SIZE))
 		x := (f32(p.x) / f32(SIZE))
@@ -207,6 +205,7 @@ main :: proc() {
 				}
 			}
 		}
+		draw_object(c, cells)
 		for _, y in cells {
 			for _, x in cells[y] {
 				raylib.DrawRectangle(
@@ -222,7 +221,6 @@ main :: proc() {
 
 		raylib.DrawText(fmt.ctprint("fps:", raylib.GetFPS()), 10, 10, 20, raylib.BLACK)
 		raylib.DrawText(fmt.ctprint("Type:", type), 10, 30, 20, raylib.BLACK)
-		draw_object(c, cells)
 
 		cells = rain_matrix(cells)
 	}

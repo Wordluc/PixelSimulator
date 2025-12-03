@@ -5,6 +5,9 @@ vec2 :: struct {
 	x: i32,
 	y: i32,
 }
+is_equal_vec :: proc(a, b: vec2) -> bool {
+	return a.x == b.x && a.y == b.y
+}
 add_vec :: proc {
 	add_vecs,
 	add_vec_scalar,
