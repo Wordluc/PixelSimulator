@@ -1,10 +1,11 @@
 package main
 
+import "core:fmt"
 import "core:math/rand"
 import "vendor:raylib"
 simulateWater :: proc(m: [][]Cell, pos: vec2) {
 	old := m[pos.y][pos.x]
-	if old.type != .Water {
+	if old.type != .Liquid {
 		return
 	}
 	offsets := []vec2 {
@@ -23,16 +24,10 @@ simulateWater :: proc(m: [][]Cell, pos: vec2) {
 	if moved {
 		m[pos.y][pos.x] = Cell{}
 	}
-	old = m[pos.y][pos.x]
-	if old.type == .Water {
-		if is_occupied(m[pos.y + 1][pos.x]) && m[pos.y + 1][pos.x].type == .Fire {
-			m[pos.y + 1][pos.x].life = 0
-		}
-	}
 }
 simulateSand :: proc(m: [][]Cell, pos: vec2) {
 	old := m[pos.y][pos.x]
-	if old.type != .Sand && old.type != .Wodden {
+	if old.type != .Grain {
 		return
 	}
 
@@ -42,8 +37,11 @@ simulateSand :: proc(m: [][]Cell, pos: vec2) {
 		m[pos.y][pos.x] = Cell{}
 	} else {
 		old := m[pos.y][pos.x]
-		if !is_out(pos.x, pos.y + 1) && old.type == .Sand && !m[pos.y + 1][pos.x].touched {
-			if is(m[pos.y + 1][pos.x], .Water) {
+		if old.type != .Grain {
+			return
+		}
+		if !is_out(pos.x, pos.y + 1) && !old.isFloater && !m[pos.y + 1][pos.x].touched {
+			if is(m[pos.y + 1][pos.x], .Liquid) {
 				w := m[pos.y + 1][pos.x]
 				w.touched = true
 				m[pos.y + 1][pos.x] = old
@@ -52,8 +50,8 @@ simulateSand :: proc(m: [][]Cell, pos: vec2) {
 
 			}
 		}
-		if !is_out(pos.x, pos.y - 1) && old.type == .Wodden && !m[pos.y - 1][pos.x].touched {
-			if is(m[pos.y - 1][pos.x], .Water) {
+		if !is_out(pos.x, pos.y - 1) && old.isFloater && !m[pos.y - 1][pos.x].touched {
+			if is(m[pos.y - 1][pos.x], .Liquid) {
 				w := m[pos.y - 1][pos.x]
 				w.touched = true
 				old.touched = true
@@ -67,10 +65,12 @@ simulateSand :: proc(m: [][]Cell, pos: vec2) {
 }
 simulateFire :: proc(m: [][]Cell, pos: vec2) {
 	old := &m[pos.y][pos.x]
-	if old.type != .Fire {
+	if !old.isCombusting {
 		return
 	}
-	old.life -= 1
+	if !old.isPersistent {
+		old.life -= 1
+	}
 	if old.life <= 0 {
 		r := rand.choice([]int{0, 1})
 		if r == 1 {
@@ -78,28 +78,16 @@ simulateFire :: proc(m: [][]Cell, pos: vec2) {
 		} else {
 			m[pos.y][pos.x] = Cell{}
 		}
-		return
-	}
-	fire := proc(m: [][]Cell, fire: ^Cell, y, x: i32) {
-		if m[y][x].type == .Wodden {
-			m[y][x] = create_fire()
-		}
-	}
-	offsetX := rand.choice([]i32{1, -1, 0})
-	offsetY := rand.choice([]i32{1, -1, 0})
-
-	y := pos.y + offsetY
-	x := pos.x + offsetX
-	if !is_out(x, y) {
-		fire(m, old, y, x)
 	}
 }
 simulateSmoke :: proc(m: [][]Cell, pos: vec2) {
 	old := &m[pos.y][pos.x]
-	if old.type != .Smoke {
+	if old.type != .Gas_like {
 		return
 	}
-	old.life -= rand.choice([]int{1, 2})
+	if !old.isPersistent {
+		old.life -= rand.choice([]int{1, 2})
+	}
 	if old.life <= 0 {
 		m[pos.y][pos.x] = Cell{}
 		return

@@ -5,9 +5,19 @@ import "core:math/rand"
 import "core:strconv"
 import "core:strings"
 import "vendor:raylib"
-LIFE_FIRE :: 10
+LIFE_FIRE :: 5
 LIFE_SMOKE :: 200
 
+Material :: enum {
+	None,
+	Sand,
+	Water,
+	Fire,
+	Smoke,
+	Wodden,
+	Lava,
+	Stone,
+}
 free_matrix :: proc(m: [][]Cell) {
 	for _, x in m {
 		delete(m[x])
@@ -40,7 +50,29 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 		if is_out(x, y) {
 			continue
 		}
-		if !is_occupied(m[y][x]) {
+		if m[y][x].touched {
+			continue
+		}
+		if is_occupied(m[y][x]) &&
+		   !m[y][x].isCombusting &&
+		   (m[y][x].isFlammable || m[y][x].type == .Liquid) {
+
+			offsetX := rand.choice([]i32{0, 1, -1})
+			offsetY := rand.choice([]i32{-1, 1})
+			ty := y + offsetY
+			tx := x + offsetX
+			if !is_out(tx, ty) && m[ty][tx].isCombusting {
+				if m[y][x].isFlammable {
+					m[y][x] = create_fire()
+					return true
+				}
+				if m[y][x].type == .Liquid {
+					m[y][x] = create_smoke()
+					return true
+				}
+			}
+
+		} else if !is_occupied(m[y][x]) || m[y][x].type == .Gas_like {
 			m[y][x] = cell
 			m[y][x].touched = true
 			return true
@@ -58,9 +90,9 @@ is :: proc(cell: Cell, type: Particletype) -> bool {
 
 simulates := []proc(m: [][]Cell, pos: vec2) {
 	simulateSand,
+	simulateSmoke,
 	simulateWater,
 	simulateFire,
-	simulateSmoke,
 }
 rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 	for _, y in m {
@@ -76,7 +108,7 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 				x = cast(int)W_M - x - 1
 			}
 			old := &m[y][x]
-			if cast(int)y + 1 >= int(H_M) {
+			if cast(int)y >= int(H_M) {
 				continue
 			}
 			pos := vec2 {
@@ -86,9 +118,6 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			for i in simulates {
 				old := &m[y][x]
 				if !is_occupied(old^) {
-					continue
-				}
-				if old.touched {
 					continue
 				}
 				i(m, pos)
@@ -113,7 +142,7 @@ main :: proc() {
 	raylib.SetTargetFPS(60)
 	p := raylib.GetMousePosition()
 	rain := false
-	type: Particletype = .Sand
+	type: Material = .Sand
 	c := new_object(
 		[][]Cell{[]Cell{create_stone(), create_stone()}, []Cell{create_stone(), create_stone()}},
 		vec2{x = 0, y = 0},
@@ -140,6 +169,9 @@ main :: proc() {
 		if raylib.IsKeyPressed(raylib.KeyboardKey.T) {
 			type = .Sand
 		}
+		if raylib.IsKeyPressed(raylib.KeyboardKey.L) {
+			type = .Lava
+		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.Y) {
 			type = .Wodden
 		}
@@ -150,7 +182,7 @@ main :: proc() {
 			type = .Fire
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.S) {
-			type = .Still
+			type = .Stone
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.A) {
 			type = .Smoke
@@ -194,10 +226,12 @@ main :: proc() {
 							cells[yt][xt] = create_wodden()
 						} else if type == .Fire {
 							cells[yt][xt] = create_fire()
-						} else if type == .Still {
+						} else if type == .Stone {
 							cells[yt][xt] = create_stone()
 						} else if type == .Smoke {
 							cells[yt][xt] = create_smoke()
+						} else if type == .Lava {
+							cells[yt][xt] = create_lava()
 						}
 
 
