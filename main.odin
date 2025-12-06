@@ -44,13 +44,13 @@ is_out :: proc(x, y: i32) -> bool {
 simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed: bool) {
 	x: i32
 	y: i32
+	if cell.touched {
+		return false
+	}
 	for offset in offsets {
 		x = pos.x + offset.x
 		y = pos.y + offset.y
 		if is_out(x, y) {
-			continue
-		}
-		if m[y][x].touched {
 			continue
 		}
 		if is_occupied(m[y][x]) &&
@@ -72,7 +72,8 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 				}
 			}
 
-		} else if !is_occupied(m[y][x]) || m[y][x].type == .Gas_like {
+		}
+		if !is_occupied(m[y][x]) || m[y][x].type == .Gas_like {
 			m[y][x] = cell
 			m[y][x].touched = true
 			return true
