@@ -5,13 +5,19 @@ object :: struct {
 	cells:   [][]Cell,
 	pos:     vec2,
 	pre_pos: vec2,
+	size:    vec2,
 }
 new_object :: proc(parts: [][]Cell, pos: vec2) -> (res: ^object) {
 	res = new(object)
 	res.cells = parts
 	res.pos = pos
 	res.pre_pos = pos
+	res.size.y = i32(len(parts))
 	for _, p in res.cells {
+		w := i32(len(res.cells[p]))
+		if w > res.size.x {
+			res.size.x = w
+		}
 		for &i in res.cells[p] {
 			i.origin = res
 		}
@@ -38,6 +44,12 @@ move_object :: proc(
 ) -> (
 	stopped: bool,
 ) {
+	if n_pos.x < 0 || n_pos.x + o.size.x > W_M {
+		return true
+	}
+	if n_pos.y < 0 || n_pos.y + o.size.y > H_M {
+		return true
+	}
 	for _, y in o.cells {
 		for _, x in o.cells[y] {
 			if is_out(i32(x) + n_pos.x, i32(y) + n_pos.y) {

@@ -64,14 +64,12 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 			if !is_out(tx, ty) && m[ty][tx].isCombusting {
 				if m[y][x].isFlammable {
 					m[y][x] = create_fire()
-					return true
-				}
-				if m[y][x].type == .Liquid {
+					return false
+				} else if m[y][x].type == .Liquid {
 					m[y][x] = create_smoke()
-					return true
+					return false
 				}
 			}
-
 		}
 		if !is_occupied(m[y][x]) || m[y][x].type == .Gas_like {
 			m[y][x] = cell
@@ -109,9 +107,6 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 				x = cast(int)W_M - x - 1
 			}
 			old := &m[y][x]
-			if cast(int)y >= int(H_M) {
-				continue
-			}
 			pos := vec2 {
 				x = i32(x),
 				y = i32(y),
@@ -136,7 +131,7 @@ RADIO_CURSOR: i32 = 5
 
 main :: proc() {
 	W_M = W / SIZE
-	H_M = H / SIZE + 1
+	H_M = H / SIZE
 	raylib.InitWindow(W, H, "Boo")
 	cells: [][]Cell = new_matrix(W_M, H_M)
 	defer free_matrix(cells)
@@ -149,7 +144,10 @@ main :: proc() {
 		vec2{x = 0, y = 0},
 	)
 	defer delete_object(c)
-
+	generator := Generator {
+		range = RADIO_CURSOR,
+	}
+	ges: [dynamic]Generator = make([dynamic]Generator)
 	for {
 		if raylib.WindowShouldClose() {
 			return
@@ -168,30 +166,31 @@ main :: proc() {
 			rain = !rain
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.T) {
-			type = .Sand
+			generator.material = .Sand
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.L) {
-			type = .Lava
+			generator.material = .Lava
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.Y) {
-			type = .Wodden
+			generator.material = .Wodden
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.W) {
-			type = .Water
+			generator.material = .Water
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.F) {
-			type = .Fire
+			generator.material = .Fire
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.S) {
-			type = .Stone
+			generator.material = .Stone
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.A) {
-			type = .Smoke
+			generator.material = .Smoke
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
 			free_matrix(cells)
 			cells = new_matrix(W_M, H_M)
 			rain = false
+			clear(&ges)
 		}
 		if raylib.IsKeyDown(raylib.KeyboardKey.UP) {
 			move_object(c, add_vec(c.pos, vec2{y = -1}), cells, true)
@@ -207,38 +206,25 @@ main :: proc() {
 		}
 		y := (f32(p.y) / f32(SIZE))
 		x := (f32(p.x) / f32(SIZE))
+		if raylib.IsKeyPressed(raylib.KeyboardKey.G) {
+			append(
+				&ges,
+				Generator {
+					pos = vec2{x = i32(x), y = i32(y)},
+					material = generator.material,
+					range = generator.range,
+				},
+			)
+		}
 		if isValid && rain {
-			for ix in -RADIO_CURSOR ..= RADIO_CURSOR {
-				for iy in -RADIO_CURSOR ..= RADIO_CURSOR {
-					yt := y + f32(iy)
-					xt := x + f32(ix)
-					if math.pow(xt - f32(x), 2) + math.pow(yt - f32(y), 2) <
-					   math.pow(f32(RADIO_CURSOR), 2) {
-						yt := i32(yt)
-						xt := i32(xt)
-						if is_out(xt, yt) {
-							continue
-						}
-						if type == .Water {
-							cells[yt][xt] = create_water()
-						} else if type == .Sand {
-							cells[yt][xt] = create_sand()
-						} else if type == .Wodden {
-							cells[yt][xt] = create_wodden()
-						} else if type == .Fire {
-							cells[yt][xt] = create_fire()
-						} else if type == .Stone {
-							cells[yt][xt] = create_stone()
-						} else if type == .Smoke {
-							cells[yt][xt] = create_smoke()
-						} else if type == .Lava {
-							cells[yt][xt] = create_lava()
-						}
-
-
-					}
-				}
+			generator.pos = vec2 {
+				x = i32(x),
+				y = i32(y),
 			}
+			do_Generator(generator, cells)
+		}
+		for i in ges {
+			do_Generator(i, cells)
 		}
 		draw_object(c, cells)
 		for _, y in cells {
@@ -252,10 +238,10 @@ main :: proc() {
 				)
 			}
 		}
-		raylib.EndDrawing()
-
 		raylib.DrawText(fmt.ctprint("fps:", raylib.GetFPS()), 10, 10, 20, raylib.BLACK)
 		raylib.DrawText(fmt.ctprint("Type:", type), 10, 30, 20, raylib.BLACK)
+		raylib.EndDrawing()
+
 
 		cells = rain_matrix(cells)
 	}
