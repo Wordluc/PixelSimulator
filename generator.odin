@@ -13,13 +13,11 @@ do_Generator :: proc(g: Generator, m: [][]Cell) {
 		for iy in -RADIO_CURSOR ..= RADIO_CURSOR {
 			yt := g.pos.y + iy
 			xt := g.pos.x + ix
+			if is_out(xt, yt) {
+				continue
+			}
 			if math.pow(f32(xt - g.pos.x), 2) + math.pow(f32(yt - g.pos.y), 2) <
 			   math.pow(f32(RADIO_CURSOR), 2) {
-				yt := yt
-				xt := xt
-				if is_out(xt, yt) {
-					continue
-				}
 				if type == .Water {
 					m[yt][xt] = create_water()
 				} else if type == .Sand {
