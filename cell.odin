@@ -16,18 +16,28 @@ Cell :: struct {
 	life:         int,
 	touched:      bool,
 	origin:       ^object,
+	speed:        i32,
 	isFlammable:  bool,
 	isPersistent: bool,
 	isCombusting: bool,
 	isFloater:    bool,
-	//TODO: implement
-	offset:       []vec2,
 }
 create_water :: proc() -> (res: Cell) {
 	res.color = rand.choice([]raylib.Color{raylib.BLUE, raylib.BLUE, raylib.BLUE, raylib.DARKBLUE})
 	res.type = .Liquid
 	res.material = .Water
+	res.speed = 3
 	res.touched = true
+	return res
+}
+create_oil :: proc() -> (res: Cell) {
+	res.color = rand.choice([]raylib.Color{raylib.BLACK, raylib.DARKBLUE})
+	res.type = .Liquid
+	res.material = .Oil
+	res.speed = 1
+	res.touched = true
+	res.isFlammable = true
+	res.isFloater = true
 	return res
 }
 create_sand :: proc() -> (res: Cell) {
@@ -35,6 +45,7 @@ create_sand :: proc() -> (res: Cell) {
 	res.type = .Grain
 	res.material = .Sand
 	res.touched = true
+	res.speed = 1
 	return res
 }
 create_wodden :: proc() -> (res: Cell) {
@@ -44,6 +55,7 @@ create_wodden :: proc() -> (res: Cell) {
 	res.isFloater = true
 	res.material = .Wodden
 	res.touched = true
+	res.speed = 1
 	return res
 }
 create_lava :: proc() -> (res: Cell) {
@@ -54,6 +66,7 @@ create_lava :: proc() -> (res: Cell) {
 	res.type = .Liquid
 	res.life = 1
 	res.touched = true
+	res.speed = 1
 	return res
 }
 create_fire :: proc() -> (res: Cell) {
@@ -65,6 +78,7 @@ create_fire :: proc() -> (res: Cell) {
 	res.material = .Fire
 	res.type = .Still
 	res.touched = true
+	res.speed = 1
 	return res
 }
 create_smoke :: proc() -> (res: Cell) {
@@ -73,6 +87,8 @@ create_smoke :: proc() -> (res: Cell) {
 	res.life = LIFE_SMOKE
 	res.material = .Smoke
 	res.touched = true
+	res.isFlammable = true
+	res.speed = 3
 	return res
 }
 create_stone :: proc() -> (res: Cell) {

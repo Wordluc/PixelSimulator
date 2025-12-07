@@ -1,22 +1,15 @@
 package main
 
-import "core:fmt"
 import "core:math/rand"
-import "vendor:raylib"
-simulateWater :: proc(m: [][]Cell, pos: vec2) {
+simulateLiquid :: proc(m: [][]Cell, pos: vec2) {
 	old := m[pos.y][pos.x]
 	if old.type != .Liquid {
 		return
 	}
 	offsets := []vec2 {
-		vec2{y = 2},
 		vec2{y = 1},
-		vec2{y = 2, x = 2},
 		vec2{y = 1, x = 1},
-		vec2{y = 2, x = -2},
 		vec2{y = 1, x = -1},
-		vec2{x = 2},
-		vec2{x = -2},
 		vec2{x = 1},
 		vec2{x = -1},
 	}
@@ -25,7 +18,7 @@ simulateWater :: proc(m: [][]Cell, pos: vec2) {
 		m[pos.y][pos.x] = Cell{}
 	}
 }
-simulateSand :: proc(m: [][]Cell, pos: vec2) {
+simulateGrain :: proc(m: [][]Cell, pos: vec2) {
 	old := m[pos.y][pos.x]
 	if old.type != .Grain {
 		return
@@ -80,7 +73,7 @@ simulateFire :: proc(m: [][]Cell, pos: vec2) {
 		}
 	}
 }
-simulateSmoke :: proc(m: [][]Cell, pos: vec2) {
+simulateAir_Gas :: proc(m: [][]Cell, pos: vec2) {
 	old := &m[pos.y][pos.x]
 	if old.type != .Gas_like {
 		return
@@ -92,7 +85,13 @@ simulateSmoke :: proc(m: [][]Cell, pos: vec2) {
 		m[pos.y][pos.x] = Cell{}
 		return
 	}
-	offsets := []vec2{vec2{y = -1}, vec2{y = -1, x = 1}, vec2{y = -1, x = -1}}
+	offsets := []vec2 {
+		vec2{y = -1},
+		vec2{y = -1, x = 1},
+		vec2{y = -1, x = -1},
+		vec2{x = 1},
+		vec2{x = -1},
+	}
 	moved := simulate(old^, pos, m, offsets)
 	if moved {
 		m[pos.y][pos.x] = Cell{}

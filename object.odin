@@ -1,6 +1,5 @@
 package main
 
-import "core:fmt"
 object :: struct {
 	cells:   [][]Cell,
 	pos:     vec2,

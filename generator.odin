@@ -9,9 +9,9 @@ Generator :: struct {
 
 do_Generator :: proc(g: Generator, m: [][]Cell) {
 	type := g.material
-	for ix in -RADIO_CURSOR ..= RADIO_CURSOR {
-		for iy in -RADIO_CURSOR ..= RADIO_CURSOR {
-			yt := g.pos.y + iy
+	for ix in -g.range ..= g.range {
+		for i_y in -g.range ..= g.range {
+			yt := g.pos.y + i_y
 			xt := g.pos.x + ix
 			if is_out(xt, yt) {
 				continue
@@ -32,6 +32,8 @@ do_Generator :: proc(g: Generator, m: [][]Cell) {
 					m[yt][xt] = create_smoke()
 				} else if type == .Lava {
 					m[yt][xt] = create_lava()
+				} else if type == .Oil {
+					m[yt][xt] = create_oil()
 				}
 
 

@@ -1,9 +1,6 @@
 package main
 import "core:fmt"
-import "core:math"
 import "core:math/rand"
-import "core:strconv"
-import "core:strings"
 import "vendor:raylib"
 LIFE_FIRE :: 5
 LIFE_SMOKE :: 200
@@ -12,6 +9,7 @@ Material :: enum {
 	None,
 	Sand,
 	Water,
+	Oil,
 	Fire,
 	Smoke,
 	Wodden,
@@ -47,34 +45,46 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 	if cell.touched {
 		return false
 	}
+	i_speed := cell.speed
+	offsetX: i32
+	offsetY: i32
+	ty: i32
+	tx: i32
 	for offset in offsets {
-		x = pos.x + offset.x
-		y = pos.y + offset.y
-		if is_out(x, y) {
-			continue
-		}
-		if is_occupied(m[y][x]) &&
-		   !m[y][x].isCombusting &&
-		   (m[y][x].isFlammable || m[y][x].type == .Liquid) {
+		for i_speed = cell.speed; i_speed > 0; i_speed = i_speed - 1 {
+			x = pos.x + offset.x * i_speed
+			y = pos.y + offset.y * i_speed
+			if is_out(x, y) {
+				continue
+			}
+			if is_occupied(m[y][x]) &&
+			   !m[y][x].isCombusting &&
+			   (m[y][x].isFlammable || m[y][x].type == .Liquid) {
 
-			offsetX := rand.choice([]i32{0, 1, -1})
-			offsetY := rand.choice([]i32{-1, 1})
-			ty := y + offsetY
-			tx := x + offsetX
-			if !is_out(tx, ty) && m[ty][tx].isCombusting {
-				if m[y][x].isFlammable {
-					m[y][x] = create_fire()
-					return false
-				} else if m[y][x].type == .Liquid {
-					m[y][x] = create_smoke()
-					return false
+				offsetX = rand.choice([]i32{0, 1, -1})
+				offsetY = rand.choice([]i32{-1, 1})
+				ty = y + offsetY
+				tx = x + offsetX
+				if !is_out(tx, ty) && m[ty][tx].isCombusting {
+					if m[y][x].isFlammable {
+						m[y][x] = create_fire()
+						return false
+					} else {
+						if !m[ty][tx].isPersistent {
+							m[ty][tx].life = 0
+						}
+						if m[y][x].type == .Liquid {
+							m[y][x] = create_smoke()
+							return false
+						}
+					}
 				}
 			}
-		}
-		if !is_occupied(m[y][x]) || m[y][x].type == .Gas_like {
-			m[y][x] = cell
-			m[y][x].touched = true
-			return true
+			if !is_occupied(m[y][x]) || (m[y][x].type == .Gas_like && cell.type != .Gas_like) {
+				m[y][x] = cell
+				m[y][x].touched = true
+				return true
+			}
 		}
 	}
 	return false
@@ -88,9 +98,9 @@ is :: proc(cell: Cell, type: Particletype) -> bool {
 
 
 simulates := []proc(m: [][]Cell, pos: vec2) {
-	simulateSand,
-	simulateSmoke,
-	simulateWater,
+	simulateGrain,
+	simulateAir_Gas,
+	simulateLiquid,
 	simulateFire,
 }
 rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
@@ -99,11 +109,11 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			m[y][x].touched = false
 		}
 	}
-	for _, iy in m {
-		y := cast(int)H_M - iy - 1 //DAL BASSO AL ALTO
-		for _, x in m[iy] {
+	for _, i_y in m {
+		y := cast(int)H_M - i_y - 1 //DAL BASSO AL ALTO
+		for _, x in m[i_y] {
 			x := x
-			if iy % 2 == 0 {
+			if i_y % 2 == 0 {
 				x = cast(int)W_M - x - 1
 			}
 			old := &m[y][x]
@@ -133,6 +143,7 @@ main :: proc() {
 	W_M = W / SIZE
 	H_M = H / SIZE
 	raylib.InitWindow(W, H, "Boo")
+	fmt.printf("SizeMatrix:W:%v,H:%v\n", W_M, H_M)
 	cells: [][]Cell = new_matrix(W_M, H_M)
 	defer free_matrix(cells)
 	raylib.SetTargetFPS(60)
@@ -147,7 +158,7 @@ main :: proc() {
 	generator := Generator {
 		range = RADIO_CURSOR,
 	}
-	ges: [dynamic]Generator = make([dynamic]Generator)
+	generators: [dynamic]Generator = make([dynamic]Generator)
 	for {
 		if raylib.WindowShouldClose() {
 			return
@@ -186,11 +197,14 @@ main :: proc() {
 		if raylib.IsKeyPressed(raylib.KeyboardKey.A) {
 			generator.material = .Smoke
 		}
+		if raylib.IsKeyPressed(raylib.KeyboardKey.O) {
+			generator.material = .Oil
+		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
 			free_matrix(cells)
 			cells = new_matrix(W_M, H_M)
 			rain = false
-			clear(&ges)
+			clear(&generators)
 		}
 		if raylib.IsKeyDown(raylib.KeyboardKey.UP) {
 			move_object(c, add_vec(c.pos, vec2{y = -1}), cells, true)
@@ -208,7 +222,7 @@ main :: proc() {
 		x := (f32(p.x) / f32(SIZE))
 		if raylib.IsKeyPressed(raylib.KeyboardKey.G) {
 			append(
-				&ges,
+				&generators,
 				Generator {
 					pos = vec2{x = i32(x), y = i32(y)},
 					material = generator.material,
@@ -223,7 +237,7 @@ main :: proc() {
 			}
 			do_Generator(generator, cells)
 		}
-		for i in ges {
+		for i in generators {
 			do_Generator(i, cells)
 		}
 		draw_object(c, cells)
