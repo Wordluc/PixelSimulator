@@ -42,9 +42,6 @@ is_out :: proc(x, y: i32) -> bool {
 simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed: bool) {
 	x: i32
 	y: i32
-	if cell.touched {
-		return false
-	}
 	i_speed := cell.speed
 	offsetX: i32
 	offsetY: i32
@@ -89,8 +86,18 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 	}
 	return false
 }
-is_occupied :: proc(cell: Cell) -> bool {
+is_occupied :: proc {
+	is_occupied_cell,
+	is_occupied_xy,
+}
+is_occupied_cell :: proc(cell: Cell) -> bool {
 	return cell.type != .None
+}
+is_occupied_xy :: proc(x, y: int, m: [][]Cell) -> bool {
+	if is_out(i32(x), i32(y)) {
+		return false
+	}
+	return m[y][x].type != .None
 }
 is :: proc(cell: Cell, type: Particletype) -> bool {
 	return cell.type == type && is_occupied(cell)
@@ -106,6 +113,10 @@ simulates := []proc(m: [][]Cell, pos: vec2) {
 rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 	for _, y in m {
 		for _, x in m[y] {
+
+			if !is_occupied(x, y, m) {
+				continue
+			}
 			m[y][x].touched = false
 		}
 	}
@@ -120,6 +131,11 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			pos := vec2 {
 				x = i32(x),
 				y = i32(y),
+			}
+
+
+			if old.touched {
+				continue
 			}
 			for i in simulates {
 				old := &m[y][x]
@@ -240,6 +256,8 @@ main :: proc() {
 		for i in generators {
 			do_Generator(i, cells)
 		}
+		raylib.DrawRectangle(10, 10, 40, 40, raylib.RED)
+
 		draw_object(c, cells)
 		for _, y in cells {
 			for _, x in cells[y] {
@@ -252,6 +270,7 @@ main :: proc() {
 				)
 			}
 		}
+
 		raylib.DrawText(fmt.ctprint("fps:", raylib.GetFPS()), 10, 10, 20, raylib.BLACK)
 		raylib.DrawText(fmt.ctprint("Type:", type), 10, 30, 20, raylib.BLACK)
 		raylib.EndDrawing()

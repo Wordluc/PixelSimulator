@@ -34,7 +34,7 @@ create_oil :: proc() -> (res: Cell) {
 	res.color = rand.choice([]raylib.Color{raylib.BLACK, raylib.DARKBLUE})
 	res.type = .Liquid
 	res.material = .Oil
-	res.speed = 1
+	res.speed = 2
 	res.touched = true
 	res.isFlammable = true
 	res.isFloater = true

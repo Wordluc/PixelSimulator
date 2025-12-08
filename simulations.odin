@@ -1,6 +1,8 @@
 package main
 
+import "core:fmt"
 import "core:math/rand"
+import "vendor:raylib"
 simulateLiquid :: proc(m: [][]Cell, pos: vec2) {
 	old := m[pos.y][pos.x]
 	if old.type != .Liquid {
@@ -85,13 +87,7 @@ simulateAir_Gas :: proc(m: [][]Cell, pos: vec2) {
 		m[pos.y][pos.x] = Cell{}
 		return
 	}
-	offsets := []vec2 {
-		vec2{y = -1},
-		vec2{y = -1, x = 1},
-		vec2{y = -1, x = -1},
-		vec2{x = 1},
-		vec2{x = -1},
-	}
+	offsets := []vec2{vec2{y = -1}, vec2{y = -1, x = 1}, vec2{y = -1, x = -1}}
 	moved := simulate(old^, pos, m, offsets)
 	if moved {
 		m[pos.y][pos.x] = Cell{}
