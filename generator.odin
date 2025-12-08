@@ -6,7 +6,7 @@ Generator :: struct {
 	pos:      vec2,
 	range:    i32,
 }
-
+i := 0
 do_Generator :: proc(g: Generator, m: [][]Cell) {
 	type := g.material
 	for ix in -g.range ..= g.range {
@@ -18,6 +18,8 @@ do_Generator :: proc(g: Generator, m: [][]Cell) {
 			}
 			if math.pow(f32(xt - g.pos.x), 2) + math.pow(f32(yt - g.pos.y), 2) <
 			   math.pow(f32(RADIO_CURSOR), 2) {
+				i = i + 1
+
 				if type == .Water {
 					m[yt][xt] = create_water()
 				} else if type == .Sand {

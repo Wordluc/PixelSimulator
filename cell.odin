@@ -21,12 +21,13 @@ Cell :: struct {
 	isPersistent: bool,
 	isCombusting: bool,
 	isFloater:    bool,
+	isSleaping:   bool,
 }
 create_water :: proc() -> (res: Cell) {
 	res.color = rand.choice([]raylib.Color{raylib.BLUE, raylib.BLUE, raylib.BLUE, raylib.DARKBLUE})
 	res.type = .Liquid
 	res.material = .Water
-	res.speed = 3
+	res.speed = 4
 	res.touched = true
 	return res
 }

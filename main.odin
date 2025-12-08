@@ -16,11 +16,6 @@ Material :: enum {
 	Lava,
 	Stone,
 }
-free_matrix :: proc(m: [][]Cell) {
-	for _, x in m {
-		delete(m[x])
-	}
-}
 new_matrix :: proc(x, y: i32) -> [][]Cell {
 	cells := make([][]Cell, H_M)
 	for _, i in cells {
@@ -84,6 +79,9 @@ simulate :: proc(cell: Cell, pos: vec2, m: [][]Cell, offsets: []vec2) -> (placed
 			}
 		}
 	}
+	if !is_out(x, y) {
+		m[y][x].isSleaping = true
+	}
 	return false
 }
 is_occupied :: proc {
@@ -110,13 +108,23 @@ simulates := []proc(m: [][]Cell, pos: vec2) {
 	simulateLiquid,
 	simulateFire,
 }
-rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
+is_sleaping :: proc(x, y: int, m: [][]Cell) -> bool {
+	if is_out(i32(x), i32(y)) {
+		return true
+	}
+	if !is_occupied(x, y, m) {
+		return false
+	}
+	return m[y][x].isSleaping
+}
+rain_matrix :: proc(m: [][]Cell) {
 	for _, y in m {
 		for _, x in m[y] {
-
 			if !is_occupied(x, y, m) {
 				continue
 			}
+
+
 			m[y][x].touched = false
 		}
 	}
@@ -133,8 +141,14 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 				y = i32(y),
 			}
 
-
 			if old.touched {
+				continue
+			}
+
+			if is_sleaping(x + 1, y, m) &&
+			   is_sleaping(x - 1, y, m) &&
+			   is_sleaping(x, y + 1, m) &&
+			   is_sleaping(x, y - 1, m) {
 				continue
 			}
 			for i in simulates {
@@ -146,12 +160,12 @@ rain_matrix :: proc(m: [][]Cell) -> [][]Cell {
 			}
 		}
 	}
-	return m
+	return
 }
 W_M: i32
 H_M: i32
-W: i32 = 1400
-H: i32 = 700
+W: i32 = 1280
+H: i32 = 720
 SIZE: i32 = 4
 RADIO_CURSOR: i32 = 5
 
@@ -161,7 +175,7 @@ main :: proc() {
 	raylib.InitWindow(W, H, "Boo")
 	fmt.printf("SizeMatrix:W:%v,H:%v\n", W_M, H_M)
 	cells: [][]Cell = new_matrix(W_M, H_M)
-	defer free_matrix(cells)
+	defer delete(cells)
 	raylib.SetTargetFPS(60)
 	p := raylib.GetMousePosition()
 	rain := false
@@ -217,7 +231,7 @@ main :: proc() {
 			generator.material = .Oil
 		}
 		if raylib.IsKeyPressed(raylib.KeyboardKey.C) {
-			free_matrix(cells)
+			delete(cells)
 			cells = new_matrix(W_M, H_M)
 			rain = false
 			clear(&generators)
@@ -260,6 +274,15 @@ main :: proc() {
 
 		draw_object(c, cells)
 		for _, y in cells {
+			if y % 5 == 0 {
+				raylib.DrawText(
+					fmt.caprint("-", int(H_M) - y),
+					1,
+					i32(y * int(SIZE)),
+					3,
+					raylib.BLACK,
+				)
+			}
 			for _, x in cells[y] {
 				raylib.DrawRectangle(
 					cast(i32)x * SIZE,
@@ -276,6 +299,6 @@ main :: proc() {
 		raylib.EndDrawing()
 
 
-		cells = rain_matrix(cells)
+		rain_matrix(cells)
 	}
 }
